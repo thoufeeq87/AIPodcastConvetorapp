@@ -5,7 +5,6 @@ import requests
 import re
 import zipfile
 from io import BytesIO
-import os
 
 # Access secrets
 deepgram_api_key = st.secrets["deepgram_api_key"]
@@ -20,43 +19,32 @@ Welcome to the **Podcast to Audiobook Converter**! This tool will guide you thro
 Simply upload your MP3 file, and the app will handle the rest, including transcription, text formatting, and audio conversion.
 """)
 
-# Initialize session state
-if 'conversion_status' not in st.session_state:
-    st.session_state.conversion_status = ""
-if 'uploaded_file' not in st.session_state:
-    st.session_state.uploaded_file = None
-if 'output_prefix' not in st.session_state:
-    st.session_state.output_prefix = "output_audiobook"
-if 'audiobook_script' not in st.session_state:
-    st.session_state.audiobook_script = ""
-
 # File uploader for MP3 files
 uploaded_file = st.file_uploader("Upload your podcast MP3 file", type="mp3")
-if uploaded_file:
-    st.session_state.uploaded_file = uploaded_file
 
 # Text input for naming the output audiobook file
 output_prefix = st.text_input("Enter the output audiobook file name (without extension)", "output_audiobook")
-st.session_state.output_prefix = output_prefix
 
 # Convert button to trigger the process
 if st.button("Convert Podcast to Audiobook"):
-    if st.session_state.uploaded_file is not None:
-        st.session_state.conversion_status = "Conversion in process..."
-        st.write(st.session_state.conversion_status)
-
+    if uploaded_file is not None:
         # Save the uploaded MP3 file
         mp3_file_path = "temp_podcast.mp3"
         with open(mp3_file_path, "wb") as f:
-            f.write(st.session_state.uploaded_file.getbuffer())
+            f.write(uploaded_file.getbuffer())
 
-        # Convert MP3 to WAV
+        # Display progress
+        st.write("Conversion in process...")
+
+
+        # Step 1: Convert MP3 to WAV
         def convert_mp3_to_wav(mp3_file_path, wav_file_path):
             audio = AudioSegment.from_mp3(mp3_file_path)
             audio.export(wav_file_path, format="wav")
             st.write(f"Converted {mp3_file_path} to {wav_file_path}")
 
-        # Transcribe the Podcast Audio to Text using Deepgram
+
+        # Step 2: Transcribe the Podcast Audio to Text using Deepgram
         def transcribe_audio(audio_file_path):
             deepgram = DeepgramClient(deepgram_api_key)
 
@@ -71,13 +59,18 @@ if st.button("Convert Podcast to Audiobook"):
             )
 
             try:
+                # Show progress bar for transcription
+                progress_bar = st.progress(0)
                 response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options, timeout=600)
+                progress_bar.progress(50)  # Update progress
+
                 transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
                 # Save transcript to a file
                 with open("transcript.txt", "w") as file:
                     file.write(transcript)
 
+                progress_bar.progress(100)  # Complete progress
                 return transcript
             except KeyError:
                 st.error("Error: 'results' not found in Deepgram response.")
@@ -87,14 +80,17 @@ if st.button("Convert Podcast to Audiobook"):
                 st.error(f"Exception: {e}")
                 return None
 
-        # Format the Transcribed Text
+
+        # Step 3: Format the Transcribed Text
         def format_transcript(transcript):
             if transcript is None:
                 return ""
+            # Remove any unwanted characters or symbols
             transcript = re.sub(r'\s+', ' ', transcript)
             return transcript.strip()
 
-        # Generate the Audiobook Script using OpenAI
+
+        # Step 4: Generate the Audiobook Script using OpenAI
         def generate_audiobook_script(transcript):
             if not transcript:
                 return ""
@@ -138,7 +134,6 @@ Example:
 And so, Emily's story comes to a close, leaving us with the promise of new adventures on the horizon. Thank you for listening to "The Adventure of a Lifetime" by John Doe, narrated by Jane Smith. This audiobook was produced by XYZ Productions. We hope you enjoyed the journey.
 
 Instructions: Utilize the provided transcripts to create a cohesive and engaging audiobook script only following the format above. Each section should be at least 500 words to ensure a comprehensive presentation. Use natural pauses to enhance the listening experience—short pauses can be indicated with "," or ".", and longer pauses with ". . .". Each chapter must include a mandatory long pause using ". . .". Ensure each section is clearly defined and transitions smoothly to maintain the listener's interest and provide a professional listening experience. Do not use music in the audiobook script and avoid using the word "podcast."
-
 Transcript:
 [{transcript}]
 """
@@ -166,7 +161,8 @@ Transcript:
                 return ""
             return response_data['choices'][0]['message']['content'].strip()
 
-        # Convert Text to Speech using Deepgram
+
+        # Step 5: Convert Text to Speech using Deepgram
         def text_to_speech(text, output_audio_file_prefix):
             if not text:
                 st.error("Error: No text provided for text-to-speech conversion.")
@@ -182,6 +178,7 @@ Transcript:
             }
 
             audio_files = []
+            total_chunks = len(chunks)
             for i, chunk in enumerate(chunks):
                 try:
                     data = {'text': chunk}
@@ -211,25 +208,26 @@ Transcript:
             else:
                 st.error("Error: No audio segments created.")
 
+
         # Zip and download all files
         def create_zip_and_download():
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-                zip_file.writestr("audiobook_script.txt", st.session_state.audiobook_script)
-                zip_file.write(f"{st.session_state.output_prefix}.wav")
+                zip_file.write("audiobook_script.txt")
+                zip_file.write(f"{output_prefix}.wav")
 
             zip_buffer.seek(0)
             st.download_button(
                 label="Download All Files",
                 data=zip_buffer,
-                file_name=f"{st.session_state.output_prefix}_files.zip",
+                file_name=f"{output_prefix}_files.zip",
                 mime="application/zip"
             )
 
+
         # Putting It All Together
         def convert_podcast_to_audiobook(mp3_file_path, audiobook_output_prefix):
-            st.session_state.conversion_status = "Conversion in process..."
-            st.write(st.session_state.conversion_status)
+            st.write("Conversion in process...")
 
             # Convert MP3 to WAV
             wav_file_path = f"{audiobook_output_prefix}.wav"
@@ -242,24 +240,24 @@ Transcript:
                 formatted_transcript = format_transcript(transcript)
 
                 # Generate the audiobook script
-                st.session_state.audiobook_script = generate_audiobook_script(formatted_transcript)
+                audiobook_script = generate_audiobook_script(formatted_transcript)
 
                 # Show and edit the audiobook script
-                edited_script = st.text_area("Edit Audiobook Script", st.session_state.audiobook_script, height=400)
+                edited_script = st.text_area("Edit Audiobook Script", audiobook_script, height=400)
 
                 if st.button("Proceed to Convert"):
-                    with st.spinner("Converting to audiobook..."):
-                        # Convert the edited script to audio
-                        text_to_speech(edited_script, audiobook_output_prefix)
+                    # Convert the edited script to audio
+                    text_to_speech(edited_script, audiobook_output_prefix)
 
-                        # Save the final audiobook script
-                        with open("audiobook_script.txt", "w") as file:
-                            file.write(edited_script)
+                    # Save the final audiobook script
+                    with open("audiobook_script.txt", "w") as file:
+                        file.write(edited_script)
 
-                        # Create a ZIP file for download
-                        create_zip_and_download()
+                    # Create a ZIP file for download
+                    create_zip_and_download()
             else:
                 st.error("Error in transcription. Please try again.")
+
 
         # Start the conversion process
         convert_podcast_to_audiobook(mp3_file_path, output_prefix)
