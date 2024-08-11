@@ -1,5 +1,4 @@
 import streamlit as st
-
 from pydub import AudioSegment
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 import requests
@@ -34,8 +33,44 @@ if st.button("Convert Podcast to Audiobook"):
         with open(mp3_file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        # Display progress
-        st.write("Conversion in process...")
+        # Function to handle conversion steps
+        def convert_podcast_to_audiobook(mp3_file_path, audiobook_output_prefix):
+            status = st.empty()
+            status.write("Conversion in process...")
+
+            # Step 1: Convert MP3 to WAV
+            podcast_audio_wav_path = "podcast_audio.wav"
+            convert_mp3_to_wav(mp3_file_path, podcast_audio_wav_path)
+            status.write("Conversion in process... (MP3 to WAV complete)")
+
+            # Step 2: Transcribe the Podcast Audio to Text
+            status.write("Transcription of podcast is in process...")
+            transcript = transcribe_audio(podcast_audio_wav_path)
+            if transcript is None:
+                st.error("Transcription failed. Exiting...")
+                return
+            status.write("Transcription of podcast is complete.")
+
+            # Step 3: Format the Transcribed Text
+            formatted_text = format_transcript(transcript)
+            status.write("Text formatting complete.")
+
+            # Step 4: Generate the Audiobook Script
+            status.write("Audiobook Script is under process...")
+            audiobook_script = generate_audiobook_script(formatted_text)
+            if not audiobook_script:
+                st.error("Audiobook script generation failed.")
+                return
+            status.write("Audiobook script is completed.")
+
+            # Step 5: Convert the Audiobook Script to Audio
+            status.write("Audiobook is being generated...")
+            text_to_speech(audiobook_script, audiobook_output_prefix)
+            status.write("Audiobook is ready and you can download.")
+
+            # Create zip and download all files
+            create_zip_and_download()
+            status.write("Download ready!")
 
         # Step 1: Convert MP3 to WAV
         def convert_mp3_to_wav(mp3_file_path, wav_file_path):
@@ -227,40 +262,6 @@ Podcast Transcript:
                 file_name=f"{output_prefix}_files.zip",
                 mime="application/zip"
             )
-
-        # Putting It All Together
-        def convert_podcast_to_audiobook(mp3_file_path, audiobook_output_prefix):
-            st.write("Conversion in process...")
-            # Step 1: Convert MP3 to WAV
-            podcast_audio_wav_path = "podcast_audio.wav"
-            convert_mp3_to_wav(mp3_file_path, podcast_audio_wav_path)
-
-            # Step 2: Transcribe the podcast audio to text
-            st.write("Transcription of podcast is in process...")
-            transcript = transcribe_audio(podcast_audio_wav_path)
-            if transcript is None:
-                st.error("Transcription failed. Exiting...")
-                return
-            st.write("Transcription of podcast is complete.")
-
-            # Step 3: Format the transcribed text
-            formatted_text = format_transcript(transcript)
-            st.write("Text formatting complete.")
-
-            # Step 4: Generate the audiobook script
-            st.write("Audiobook Script is under process...")
-            audiobook_script = generate_audiobook_script(formatted_text)
-            if not audiobook_script:
-                st.error("Audiobook script generation failed.")
-                return
-            st.write("Audiobook script is completed.")
-
-            # Step 5: Convert the audiobook script to audio
-            text_to_speech(audiobook_script, audiobook_output_prefix)
-            st.write("Audiobook is ready and you can download.")
-
-            # Create zip and download all files
-            create_zip_and_download()
 
         # Run the conversion process
         convert_podcast_to_audiobook(mp3_file_path, output_prefix)
