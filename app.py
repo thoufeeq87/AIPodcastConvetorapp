@@ -39,6 +39,9 @@ if uploaded_file:
 output_prefix = st.text_input("Enter the output audiobook file name (without extension)", "output_audiobook")
 st.session_state.output_prefix = output_prefix
 
+# Display conversion status
+st.write(st.session_state.conversion_status)
+
 
 # Function to convert MP3 to WAV
 def convert_mp3_to_wav(mp3_file_path, wav_file_path):
@@ -188,7 +191,7 @@ def create_zip_and_download():
     )
 
 
-# Execute the conversion process
+# Start the conversion process
 if st.session_state.uploaded_file:
     mp3_file_path = "temp_podcast.mp3"
     with open(mp3_file_path, "wb") as f:
@@ -196,12 +199,8 @@ if st.session_state.uploaded_file:
 
     if st.button("Start Conversion"):
         st.session_state.conversion_status = "Conversion in process..."
-        # Convert MP3 to WAV
-        wav_file_path = f"{st.session_state.output_prefix}.wav"
-        convert_mp3_to_wav(mp3_file_path, wav_file_path)
-
-        # Transcribe the audio
-        transcript = transcribe_audio(wav_file_path)
+        convert_mp3_to_wav(mp3_file_path, f"{st.session_state.output_prefix}.wav")
+        transcript = transcribe_audio(f"{st.session_state.output_prefix}.wav")
 
         if transcript:
             formatted_transcript = format_transcript(transcript)
