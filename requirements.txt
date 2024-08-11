@@ -1,4 +1,4 @@
-streamlit==1.19.0
-pydub==0.25.1
-requests==2.28.2
-deepgram==0.1.5
+streamlit
+pydub
+requests
+deepgram
