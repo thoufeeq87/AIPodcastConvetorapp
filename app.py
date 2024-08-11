@@ -1,3 +1,9 @@
+import os
+
+# Set environment variables for ffmpeg and ffprobe
+os.environ['FFMPEG_BINARY'] = '/usr/local/bin/ffmpeg'
+os.environ['FFPROBE_BINARY'] = '/usr/local/bin/ffprobe'
+
 import streamlit as st
 from pydub import AudioSegment
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
