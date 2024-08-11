@@ -21,14 +21,14 @@ Simply upload your MP3 file, and the app will handle the rest, including transcr
 """)
 
 # Initialize session state
+if 'conversion_status' not in st.session_state:
+    st.session_state.conversion_status = ""
 if 'uploaded_file' not in st.session_state:
     st.session_state.uploaded_file = None
 if 'output_prefix' not in st.session_state:
     st.session_state.output_prefix = "output_audiobook"
 if 'audiobook_script' not in st.session_state:
     st.session_state.audiobook_script = ""
-if 'conversion_status' not in st.session_state:
-    st.session_state.conversion_status = ""
 
 # File uploader for MP3 files
 uploaded_file = st.file_uploader("Upload your podcast MP3 file", type="mp3")
@@ -42,21 +42,21 @@ st.session_state.output_prefix = output_prefix
 # Convert button to trigger the process
 if st.button("Convert Podcast to Audiobook"):
     if st.session_state.uploaded_file is not None:
+        st.session_state.conversion_status = "Conversion in process..."
+        st.write(st.session_state.conversion_status)
+
         # Save the uploaded MP3 file
         mp3_file_path = "temp_podcast.mp3"
         with open(mp3_file_path, "wb") as f:
             f.write(st.session_state.uploaded_file.getbuffer())
 
-        st.session_state.conversion_status = "Conversion in process..."
-        st.write(st.session_state.conversion_status)
-
-        # Step 1: Convert MP3 to WAV
+        # Convert MP3 to WAV
         def convert_mp3_to_wav(mp3_file_path, wav_file_path):
             audio = AudioSegment.from_mp3(mp3_file_path)
             audio.export(wav_file_path, format="wav")
             st.write(f"Converted {mp3_file_path} to {wav_file_path}")
 
-        # Step 2: Transcribe the Podcast Audio to Text using Deepgram
+        # Transcribe the Podcast Audio to Text using Deepgram
         def transcribe_audio(audio_file_path):
             deepgram = DeepgramClient(deepgram_api_key)
 
@@ -87,15 +87,14 @@ if st.button("Convert Podcast to Audiobook"):
                 st.error(f"Exception: {e}")
                 return None
 
-        # Step 3: Format the Transcribed Text
+        # Format the Transcribed Text
         def format_transcript(transcript):
             if transcript is None:
                 return ""
-            # Remove any unwanted characters or symbols
             transcript = re.sub(r'\s+', ' ', transcript)
             return transcript.strip()
 
-        # Step 4: Generate the Audiobook Script using OpenAI
+        # Generate the Audiobook Script using OpenAI
         def generate_audiobook_script(transcript):
             if not transcript:
                 return ""
@@ -167,7 +166,7 @@ Transcript:
                 return ""
             return response_data['choices'][0]['message']['content'].strip()
 
-        # Step 5: Convert Text to Speech using Deepgram
+        # Convert Text to Speech using Deepgram
         def text_to_speech(text, output_audio_file_prefix):
             if not text:
                 st.error("Error: No text provided for text-to-speech conversion.")
@@ -216,14 +215,14 @@ Transcript:
         def create_zip_and_download():
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-                zip_file.write("audiobook_script.txt")
-                zip_file.write(f"{output_prefix}.wav")
+                zip_file.writestr("audiobook_script.txt", st.session_state.audiobook_script)
+                zip_file.write(f"{st.session_state.output_prefix}.wav")
 
             zip_buffer.seek(0)
             st.download_button(
                 label="Download All Files",
                 data=zip_buffer,
-                file_name=f"{output_prefix}_files.zip",
+                file_name=f"{st.session_state.output_prefix}_files.zip",
                 mime="application/zip"
             )
 
@@ -249,15 +248,16 @@ Transcript:
                 edited_script = st.text_area("Edit Audiobook Script", st.session_state.audiobook_script, height=400)
 
                 if st.button("Proceed to Convert"):
-                    # Convert the edited script to audio
-                    text_to_speech(edited_script, audiobook_output_prefix)
+                    with st.spinner("Converting to audiobook..."):
+                        # Convert the edited script to audio
+                        text_to_speech(edited_script, audiobook_output_prefix)
 
-                    # Save the final audiobook script
-                    with open("audiobook_script.txt", "w") as file:
-                        file.write(edited_script)
+                        # Save the final audiobook script
+                        with open("audiobook_script.txt", "w") as file:
+                            file.write(edited_script)
 
-                    # Create a ZIP file for download
-                    create_zip_and_download()
+                        # Create a ZIP file for download
+                        create_zip_and_download()
             else:
                 st.error("Error in transcription. Please try again.")
 
