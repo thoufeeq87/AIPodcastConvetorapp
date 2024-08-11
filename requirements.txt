@@ -2,3 +2,4 @@ streamlit
 pydub
 requests
 deepgram-sdk
+ffmpeg-python
