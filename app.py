@@ -27,6 +27,8 @@ if 'output_prefix' not in st.session_state:
     st.session_state.output_prefix = "output_audiobook"
 if 'audiobook_script' not in st.session_state:
     st.session_state.audiobook_script = ""
+if 'conversion_status' not in st.session_state:
+    st.session_state.conversion_status = ""
 
 # File uploader for MP3 files
 uploaded_file = st.file_uploader("Upload your podcast MP3 file", type="mp3")
@@ -45,8 +47,8 @@ if st.button("Convert Podcast to Audiobook"):
         with open(mp3_file_path, "wb") as f:
             f.write(st.session_state.uploaded_file.getbuffer())
 
-        # Display progress
-        st.write("Conversion in process...")
+        st.session_state.conversion_status = "Conversion in process..."
+        st.write(st.session_state.conversion_status)
 
         # Step 1: Convert MP3 to WAV
         def convert_mp3_to_wav(mp3_file_path, wav_file_path):
@@ -227,7 +229,8 @@ Transcript:
 
         # Putting It All Together
         def convert_podcast_to_audiobook(mp3_file_path, audiobook_output_prefix):
-            st.write("Conversion in process...")
+            st.session_state.conversion_status = "Conversion in process..."
+            st.write(st.session_state.conversion_status)
 
             # Convert MP3 to WAV
             wav_file_path = f"{audiobook_output_prefix}.wav"
