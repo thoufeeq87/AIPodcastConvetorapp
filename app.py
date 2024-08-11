@@ -36,11 +36,13 @@ if st.button("Convert Podcast to Audiobook"):
         # Display progress
         st.write("Conversion in process...")
 
+
         # Step 1: Convert MP3 to WAV
         def convert_mp3_to_wav(mp3_file_path, wav_file_path):
             audio = AudioSegment.from_mp3(mp3_file_path)
             audio.export(wav_file_path, format="wav")
             st.write(f"Converted {mp3_file_path} to {wav_file_path}")
+
 
         # Step 2: Transcribe the Podcast Audio to Text using Deepgram
         def transcribe_audio(audio_file_path):
@@ -78,6 +80,7 @@ if st.button("Convert Podcast to Audiobook"):
                 st.error(f"Exception: {e}")
                 return None
 
+
         # Step 3: Format the Transcribed Text
         def format_transcript(transcript):
             if transcript is None:
@@ -86,62 +89,55 @@ if st.button("Convert Podcast to Audiobook"):
             transcript = re.sub(r'\s+', ' ', transcript)
             return transcript.strip()
 
+
         # Step 4: Generate the Audiobook Script using OpenAI
         def generate_audiobook_script(transcript):
             if not transcript:
                 return ""
-            prompt = f"""Create a high-quality audiobook script from the provided podcast transcripts. Follow the specific format outlined below to ensure a professional and engaging final product. The Number of words should be minimum of 2000 words and maximum of 6000 words.
+            prompt = f"""Task: Create a high-quality audiobook script from the provided transcripts. Follow the specific format outlined below to ensure a professional and engaging final product. Each section should be a minimum of 500 words to ensure depth and engagement. While the provided examples illustrate the format, you are not required to follow them strictly; instead, adhere to the format structure and provide natural pauses to make the script easier to listen to.
 
 Format Details:
-1. Title and Introduction
+
+Title and Introduction
+
 Opening Credits: Include the title, author, and narrator.
 Introduction: Provide a brief introduction to set the stage for the listener.
-
 Example:
-[Opening Music]
-Narrator: Welcome to "The Adventure of a Lifetime" by John Doe, narrated by Jane Smith.
-[Music fades]
-Narrator: In this thrilling tale, you will embark on a journey filled with unexpected twists and turns. Let's begin.
+Welcome to "The Adventure of a Lifetime" by John Doe, narrated by Jane Smith. In this thrilling tale, you will embark on a journey filled with unexpected twists and turns. Let's begin.
 
-2. Chapters
+Chapters
+
 Chapter Announcement: Clearly state the chapter number and title.
 Content: Read the chapter content clearly and engagingly.
-Transitions: Use pauses or brief music to indicate transitions between sections or major points.
-
+Transitions: Use natural pauses to indicate transitions between sections or major points. For short pauses, use "," or ".". For longer pauses, use ". . .". Each chapter must include a mandatory long pause using ". . .".
 Example:
-Narrator: Chapter One: The Beginning
-[Short pause]
-Narrator: It was a dark and stormy night when Emily first arrived in the small town of Willow Creek. The rain pounded against the car windows, creating a rhythmic beat that mirrored her racing heart.
+Chapter One: The Beginning
+It was a dark and stormy night when Emily first arrived in the small town of Willow Creek. The rain pounded against the car windows, creating a rhythmic beat that mirrored her racing heart.
 
-3. Mid-Book Announcements
+Mid-Book Announcements
+
 Optional Announcements: Provide updates or additional information, such as acknowledgments or mid-book summaries.
-
 Example:
-Narrator: This concludes Chapter Five. Stay tuned for Chapter Six, where Emily's adventure takes an unexpected turn.
-[Short pause with music]
+This concludes Chapter Five. Stay tuned for Chapter Six, where Emily's adventure takes an unexpected turn.
 
-4. Chapter Endings
-Clear Ending: Indicate the end of each chapter with a pause or brief music.
+Chapter Endings
 
+Clear Ending: Indicate the end of each chapter with a pause.
 Example:
-Narrator: And with that, Emily knew her journey was far from over. She had only just begun to uncover the secrets of Willow Creek.
-[Short pause]
+And with that, Emily knew her journey was far from over. She had only just begun to uncover the secrets of Willow Creek.
 
-5. Conclusion
+Conclusion
+
 Closing Remarks: Provide a brief conclusion or closing remarks.
 Closing Credits: Mention the title, author, narrator, and any other pertinent information.
-Closing Music: End with music to signify the end of the audiobook.
-
 Example:
-Narrator: And so, Emily's story comes to a close, leaving us with the promise of new adventures on the horizon. Thank you for listening to "The Adventure of a Lifetime" by John Doe, narrated by Jane Smith.
-[Closing music fades in]
-Narrator: This audiobook was produced by XYZ Productions. We hope you enjoyed the journey.
-[Music fades out]
+And so, Emily's story comes to a close, leaving us with the promise of new adventures on the horizon. Thank you for listening to "The Adventure of a Lifetime" by John Doe, narrated by Jane Smith. This audiobook was produced by XYZ Productions. We hope you enjoyed the journey.
 
-Instructions: Utilize the provided podcast transcripts to create a cohesive and engaging audiobook script following the format above. Ensure each section is clearly defined and transitions smoothly to maintain the listener's interest and provide a professional listening experience.
+Instructions: Utilize the provided transcripts to create a cohesive and engaging audiobook script only following the format above. Each section should be at least 500 words to ensure a comprehensive presentation. Use natural pauses to enhance the listening experience—short pauses can be indicated with "," or ".", and longer pauses with ". . .". Each chapter must include a mandatory long pause using ". . .". Ensure each section is clearly defined and transitions smoothly to maintain the listener's interest and provide a professional listening experience. Do not use music in the audiobook script and avoid using the word "podcast."
 
-Podcast Transcript:
-[{transcript}]"""
+Transcript:
+[{transcript}]
+"""
 
             response = requests.post(
                 'https://api.openai.com/v1/chat/completions',
@@ -165,6 +161,7 @@ Podcast Transcript:
                 st.write(response_data)
                 return ""
             return response_data['choices'][0]['message']['content'].strip()
+
 
         # Step 5: Convert Text to Speech using Deepgram
         def text_to_speech(text, output_audio_file_prefix):
@@ -212,12 +209,13 @@ Podcast Transcript:
             else:
                 st.error("Error: No audio segments created.")
 
-        # Zip and download the audiobook script and audio file
+
+        # Zip and download all files
         def create_zip_and_download():
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+                zip_file.write("audiobook_script.txt")
                 zip_file.write(f"{output_prefix}.wav")
-                zip_file.writestr(f"{output_prefix}_script.txt", audiobook_script)
 
             zip_buffer.seek(0)
             st.download_button(
@@ -227,20 +225,43 @@ Podcast Transcript:
                 mime="application/zip"
             )
 
+
         # Putting It All Together
         def convert_podcast_to_audiobook(mp3_file_path, audiobook_output_prefix):
-            wav_file_path = "temp_podcast.wav"
+            st.write("Conversion in process...")
+
+            # Convert MP3 to WAV
+            wav_file_path = f"{audiobook_output_prefix}.wav"
             convert_mp3_to_wav(mp3_file_path, wav_file_path)
 
+            # Transcribe the audio
             transcript = transcribe_audio(wav_file_path)
-            formatted_transcript = format_transcript(transcript)
 
-            global audiobook_script
-            audiobook_script = generate_audiobook_script(formatted_transcript)
+            if transcript:
+                formatted_transcript = format_transcript(transcript)
 
-            text_to_speech(audiobook_script, audiobook_output_prefix)
+                # Generate the audiobook script
+                audiobook_script = generate_audiobook_script(formatted_transcript)
 
-            create_zip_and_download()
+                # Show and edit the audiobook script
+                edited_script = st.text_area("Edit Audiobook Script", audiobook_script, height=400)
 
-        # Run the conversion process
+                if st.button("Proceed to Convert"):
+                    # Convert the edited script to audio
+                    text_to_speech(edited_script, audiobook_output_prefix)
+
+                    # Save the final audiobook script
+                    with open("audiobook_script.txt", "w") as file:
+                        file.write(edited_script)
+
+                    # Create a ZIP file for download
+                    create_zip_and_download()
+            else:
+                st.error("Error in transcription. Please try again.")
+
+
+        # Start the conversion process
         convert_podcast_to_audiobook(mp3_file_path, output_prefix)
+
+    else:
+        st.error("Please upload an MP3 file.")
