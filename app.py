@@ -14,12 +14,6 @@ openai_api_key = st.secrets["openai_api_key"]
 # Streamlit application title
 st.title("Podcast to Audiobook Converter")
 
-# Instructional text for beginners
-st.markdown("""
-Welcome to the **Podcast to Audiobook Converter**! This tool will guide you through converting a podcast MP3 file into an audiobook. 
-Simply upload your MP3 file, and the app will handle the rest, including transcription, text formatting, and audio conversion.
-""")
-
 # Initialize session state
 if 'conversion_status' not in st.session_state:
     st.session_state.conversion_status = ""
@@ -42,14 +36,10 @@ st.session_state.output_prefix = output_prefix
 # Display conversion status
 st.write(st.session_state.conversion_status)
 
-
-# Function to convert MP3 to WAV
 def convert_mp3_to_wav(mp3_file_path, wav_file_path):
     audio = AudioSegment.from_mp3(mp3_file_path)
     audio.export(wav_file_path, format="wav")
 
-
-# Function to transcribe audio
 def transcribe_audio(audio_file_path):
     deepgram = DeepgramClient(deepgram_api_key)
     with open(audio_file_path, 'rb') as audio:
@@ -69,15 +59,11 @@ def transcribe_audio(audio_file_path):
         st.error(f"Exception: {e}")
         return None
 
-
-# Function to format the transcript
 def format_transcript(transcript):
     if transcript is None:
         return ""
     return re.sub(r'\s+', ' ', transcript).strip()
 
-
-# Function to generate audiobook script
 def generate_audiobook_script(transcript):
     if not transcript:
         return ""
@@ -128,9 +114,7 @@ Transcript:
     response = requests.post(
         'https://api.openai.com/v1/chat/completions',
         headers={'Authorization': f'Bearer {openai_api_key}', 'Content-Type': 'application/json'},
-        json={'model': 'gpt-3.5-turbo', 'messages': [{'role': 'system', 'content': 'You are a helpful assistant.'},
-                                                     {'role': 'user', 'content': prompt}], 'max_tokens': 3500,
-              'temperature': 0.7}
+        json={'model': 'gpt-3.5-turbo', 'messages': [{'role': 'system', 'content': 'You are a helpful assistant.'}, {'role': 'user', 'content': prompt}], 'max_tokens': 3500, 'temperature': 0.7}
     )
     response_data = response.json()
     if 'choices' not in response_data:
@@ -138,8 +122,6 @@ Transcript:
         return ""
     return response_data['choices'][0]['message']['content'].strip()
 
-
-# Function to convert text to speech
 def text_to_speech(text, output_audio_file_prefix):
     if not text:
         st.error("Error: No text provided for text-to-speech conversion.")
@@ -175,8 +157,6 @@ def text_to_speech(text, output_audio_file_prefix):
     else:
         st.error("Error: No audio segments created.")
 
-
-# Function to create zip file and provide download link
 def create_zip_and_download():
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
@@ -190,32 +170,24 @@ def create_zip_and_download():
         mime="application/zip"
     )
 
-
-# Start the conversion process
-if st.session_state.uploaded_file:
+# Start conversion process
+if st.session_state.uploaded_file and st.button("Start Conversion"):
+    st.session_state.conversion_status = "Conversion in process..."
     mp3_file_path = "temp_podcast.mp3"
     with open(mp3_file_path, "wb") as f:
         f.write(st.session_state.uploaded_file.getbuffer())
-
-    if st.button("Start Conversion"):
-        st.session_state.conversion_status = "Conversion in process..."
-        convert_mp3_to_wav(mp3_file_path, f"{st.session_state.output_prefix}.wav")
-        transcript = transcribe_audio(f"{st.session_state.output_prefix}.wav")
-
-        if transcript:
-            formatted_transcript = format_transcript(transcript)
-            st.session_state.audiobook_script = generate_audiobook_script(formatted_transcript)
-            st.session_state.conversion_status = "Editing script..."
-            edited_script = st.text_area("Edit Audiobook Script", st.session_state.audiobook_script, height=400)
-
-            if st.button("Proceed to Convert"):
-                st.session_state.audiobook_script = edited_script
-                with st.spinner("Converting to audiobook..."):
-                    text_to_speech(edited_script, st.session_state.output_prefix)
-                    with open("audiobook_script.txt", "w") as file:
-                        file.write(edited_script)
-                    create_zip_and_download()
-        else:
-            st.error("Error in transcription. Please try again.")
+    convert_mp3_to_wav(mp3_file_path, f"{st.session_state.output_prefix}.wav")
+    transcript = transcribe_audio(f"{st.session_state.output_prefix}.wav")
+    if transcript:
+        formatted_transcript = format_transcript(transcript)
+        st.session_state.audiobook_script = generate_audiobook_script(formatted_transcript)
+        with st.spinner("Converting to audiobook..."):
+            text_to_speech(st.session_state.audiobook_script, st.session_state.output_prefix)
+            with open("audiobook_script.txt", "w") as file:
+                file.write(st.session_state.audiobook_script)
+            create_zip_and_download()
+    else:
+        st.error("Error in transcription. Please try again.")
 else:
-    st.error("Please upload an MP3 file.")
+    if st.session_state.uploaded_file:
+        st.write("Upload and start conversion.")
